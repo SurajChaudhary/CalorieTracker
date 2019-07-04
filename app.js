@@ -61,6 +61,21 @@ const ItemCtrl = (function() {
 
       //Return total cal
       return data.totalCalories;
+    },
+    getItemById: function(id) {
+      let found = null;
+      data.items.forEach(function(item){
+        if(item.id === id){
+          found = item;
+        }
+      });
+      return found;
+    },
+    setCurrentItem: function(item) {
+      data.currentItem = item;
+    },
+    getCurrentItem: function() {
+      return data.currentItem;
     }
   }
 })();
@@ -72,6 +87,9 @@ const UICtrl = (function() {
   const UISelectors = {
     itemList: '#item-list',
     addBtn: '.add-btn',
+    updateBtn: '.update-btn',
+    deleteBtn: '.delete-btn',
+    backBtn: '.back-btn',
     itemNameInput:'#item-name',
     itemCaloriesInput:'#item-calories',
     totalCalories: '.total-calories'
@@ -127,6 +145,24 @@ const UICtrl = (function() {
     },
     showTotalCalories: function(totalCalories) {
       document.querySelector(UISelectors.totalCalories).textContent = totalCalories;
+    },
+    clearEditState: function() {
+      UICtrl.clearInput();
+      document.querySelector(UISelectors.updateBtn).style.display = 'none';
+      document.querySelector(UISelectors.deleteBtn).style.display = 'none';
+      document.querySelector(UISelectors.backBtn).style.display = 'none';
+      document.querySelector(UISelectors.addBtn).style.display = 'inline';
+    },
+    addItemToForm: function() {
+      document.querySelector(UISelectors.itemNameInput).value = ItemCtrl.getCurrentItem().name;
+      document.querySelector(UISelectors.itemCaloriesInput).value = ItemCtrl.getCurrentItem().calories;
+      UICtrl.showEditState();
+    },
+    showEditState: function() {
+      document.querySelector(UISelectors.updateBtn).style.display = 'inline';
+      document.querySelector(UISelectors.deleteBtn).style.display = 'inline';
+      document.querySelector(UISelectors.backBtn).style.display = 'inline';
+      document.querySelector(UISelectors.addBtn).style.display = 'none';
     }
 
   }
@@ -142,6 +178,11 @@ const AppCtrl = (function(ItemCtrl, UICtrl, StorageCtrl) {
     console.log(UISelectors);
     //Add item event
     document.querySelector(UISelectors.addBtn).addEventListener('click',itemAddSubmit);
+
+    //Edit icon click event- Since this gets added dynamically during DOM rendering thats why we have to use event delegation and not bubbling.
+    // In event delegation, we gets hold of a parent element in DOM to grab dynamically generated element.
+    // Item list is the parent element in this case. But we need to target our icon element else click event will happen on whole parent element(itemList).
+    document.querySelector(UISelectors.itemList).addEventListener('click',itemUpdateSubmit);
   }
 
   // Add item submit
@@ -167,10 +208,40 @@ const AppCtrl = (function(ItemCtrl, UICtrl, StorageCtrl) {
     }
     e.preventDefault();
   }
+
+  // Update item submit
+  const itemUpdateSubmit = function(e) {
+    //We are targeting edit icon in event delegation.
+    if(e.target.classList.contains('edit-item')){
+      // Get list item ID
+      //So we need to get the li(listItem)
+      // icon's parent is <a> tag and its parent is li. So
+      const listItemID = e.target.parentNode.parentNode.id;
+
+      // Split ID to get number
+      const listIdArray = listItemID.split('-');
+      // Get the number in split array
+      const id = parseInt(listIdArray[1]);
+
+      // Get item based on ID
+      const itemToEdit = ItemCtrl.getItemById(id);
+      
+      // Set current item
+      ItemCtrl.setCurrentItem(itemToEdit);
+
+      // add item to form
+      UICtrl.addItemToForm();
+    }
+    
+    e.preventDefault();
+  }
   //Public methods
   return {
     init: function() {
       console.log('Initializing App...');
+      // Clear Edit state / Set initial state
+      UICtrl.clearEditState();
+
       //Fetch items from data store
       const items = ItemCtrl.getItems();
 
@@ -187,6 +258,7 @@ const AppCtrl = (function(ItemCtrl, UICtrl, StorageCtrl) {
 
        // Add total calories to UI
        UICtrl.showTotalCalories(totalCalories);
+
       // Load event listeners
       loadEventListeners();
       
